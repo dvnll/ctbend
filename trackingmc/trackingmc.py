@@ -14,6 +14,8 @@ from datetime import datetime
 
 import ctbend.ctbendbase.CTBend as CTBend
 from ctbend.ctbendtrainer.CTBendGeometry import XYZVector, e_phi, e_theta
+from ctbend.ctbendbase.PointingData import CCDCoordinate, DriveCoordinate,\
+     PointingData, PointingDataset
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.INFO)
@@ -143,18 +145,33 @@ if __name__ == "__main__":
     pprint(config)
     setup = MCSetup(config)
     logger.info("Pixel scale: " + str(setup.pixel_scale.to(u.arcsec)) + " arcsec")
-    output_list = []
 
-    for i, timestamp in enumerate(setup.tracking_timestamps()):
-        time = datetime.fromtimestamp(timestamp)
-        observing_time = Time(time)
+    pointing_dataset = PointingDataset(setup.pixel_scale.to(u.arcsec).value)
 
-        aa = AltAz(location=setup.location,
-                   obstime=observing_time)
+    for timestamp in setup.tracking_timestamps():
 
-        star_altaz = setup.random_star.transform_to(aa)
-        if star_altaz.alt.to(u.deg).value < 5:
-            continue
+        def random_star_altaz(minimal_altitude_deg : float = 5):
+            """Returns random altaz coordinates for a test star.
+
+                Args:
+                minimal_altitude_deg: Minimal altitude of the star in degrees.
+            """ 
+            def get_random_star():
+                time = datetime.fromtimestamp(timestamp)
+                observing_time = Time(time)
+
+                aa = AltAz(location=setup.location,
+                           obstime=observing_time)
+
+                return setup.random_star.transform_to(aa)
+        
+            star_altaz = get_random_star()
+            while star_altaz.alt.to(u.deg).value < minimal_altitude_deg:
+                star_altaz = get_random_star()
+            return star_altaz
+
+        star_altaz = random_star_altaz()
+
         #star_altaz = setup.star.transform_to(aa)
 
         bending = setup.bending
@@ -172,61 +189,79 @@ if __name__ == "__main__":
         telescope = XYZVector(az=telescope_az.to(u.deg).value,
                               el=telescope_el.to(u.deg).value)
 
-        star_vector = XYZVector(star_altaz.az.to(u.deg).value,
-                                star_altaz.alt.to(u.deg).value)
+        def get_e_phi():     
+            delta_az_derivative_phi = bending.delta_azimuth_derivative_phi(
+                                        az=telescope_az.to(u.deg).value,
+                                        el=telescope_el.to(u.deg).value)
 
-        image = telescope * (star_vector * telescope) * 2. - star_vector
-     
-        delta_az_derivative_phi = bending.delta_azimuth_derivative_phi(az=telescope_az.to(u.deg).value,
-                                                                       el=telescope_el.to(u.deg).value)
+            delta_el_derivative_phi = bending.delta_elevation_derivative_phi(
+                                        az=telescope_az.to(u.deg).value,
+                                        el=telescope_el.to(u.deg).value)
 
-        delta_el_derivative_phi = bending.delta_elevation_derivative_phi(az=telescope_az.to(u.deg).value,
-                                                                         el=telescope_el.to(u.deg).value)
-
-        _e_phi = e_phi(az_tel=telescope.az,
-                       el_tel=telescope.alt,
-                       delta_az_derivative_phi=delta_az_derivative_phi,
-                       delta_el_derivative_phi=delta_el_derivative_phi,
-                       math=np)
-    
-        delta_az_derivative_theta = bending.delta_azimuth_derivative_theta(az=telescope_az.to(u.deg).value,
-                                                                           el=telescope_el.to(u.deg).value)
-
-        delta_el_derivative_theta = bending.delta_elevation_derivative_theta(az=telescope_az.to(u.deg).value,
-                                                                             el=telescope_el.to(u.deg).value)
-
-        _e_theta = e_theta(az_tel=telescope.az,
+            _e_phi = e_phi(az_tel=telescope.az,
                            el_tel=telescope.alt,
-                           delta_az_derivative_theta=delta_az_derivative_theta,
-                           delta_el_derivative_theta=delta_el_derivative_theta,
-                           math=np)
- 
-        image_star_length = setup.telescope_focal_length.to(u.mm).value / (telescope * star_vector)
-        image_star = image * image_star_length
+                           delta_az_derivative_phi=delta_az_derivative_phi,
+                           delta_el_derivative_phi=delta_el_derivative_phi)
+            return _e_phi
 
-        fp_u = image_star * _e_phi
-        fp_v = image_star * _e_theta
+        def get_e_theta(): 
+            delta_az_derivative_theta = bending.delta_azimuth_derivative_theta(
+                                            az=telescope_az.to(u.deg).value,
+                                            el=telescope_el.to(u.deg).value)
 
-        image_star_length = setup.ccd_focal_length.to(u.mm).value / (telescope * star_vector)
-        image_star = image * image_star_length
+            delta_el_derivative_theta = \
+                    bending.delta_elevation_derivative_theta(
+                                            az=telescope_az.to(u.deg).value,
+                                            el=telescope_el.to(u.deg).value)
 
-        x1_tel = 0
-        x2_tel = 0
+            _e_theta = e_theta(
+                        az_tel=telescope.az,
+                        el_tel=telescope.alt,
+                        delta_az_derivative_theta=delta_az_derivative_theta,
+                        delta_el_derivative_theta=delta_el_derivative_theta)
+            return _e_theta
 
-        x1_star = image_star * _e_phi / setup.ccd_pixel_size.to(u.mm).value
-        x2_star = image_star * _e_theta / setup.ccd_pixel_size.to(u.mm).value
+        def telescope_ccd_position():
+            """The pointing direction of the telescope in CCD coordinates
+               is the center of the LED pattern. By definition, this is the 
+               zero-vector in CCD coordinates in this MC.
+            """
+            x1_tel = 0
+            x2_tel = 0
 
-        measured_x1_star, measured_x2_star = setup.measured_x1x2(x1_star, x2_star)
-        #measured_x1_star = x1_star
-        #measured_x2_star = x2_star
+            return CCDCoordinate(x1_tel, x2_tel)
 
-        info = str(i) + " " + str(telescope.az) + " " + str(telescope.alt)
-        info += " " + str(measured_x1_star) + " " + str(measured_x2_star) + " " 
-        info += "0" + " " + str(x1_tel) + " "  + str(x2_tel) + " " + "0" + " " + str(timestamp)
-        print(info)
-        output_list.append(info)
+        def star_ccd_position():
+            star_vector = XYZVector(star_altaz.az.to(u.deg).value,
+                                    star_altaz.alt.to(u.deg).value)
 
 
-    with open(options.OUTFILE, "w") as fout:
-        for info in output_list:
-            fout.write(info + "\n")
+            focal_length_mm = setup.ccd_focal_length.to(u.mm).value
+            image_star_length = focal_length_mm / (telescope * star_vector)
+
+            image = telescope * (star_vector * telescope) * 2. - star_vector
+
+            image_star = image * image_star_length
+
+            
+            fp_u = image_star * get_e_phi()
+            fp_v = image_star * get_e_theta()
+
+            x1_star = fp_u / setup.ccd_pixel_size.to(u.mm).value
+            x2_star = fp_v / setup.ccd_pixel_size.to(u.mm).value
+
+            measured_x1_star, measured_x2_star = setup.measured_x1x2(x1_star,
+                                                                     x2_star)
+
+            return CCDCoordinate(measured_x1_star, measured_x2_star)
+
+        drive_position = DriveCoordinate(telescope.az, telescope.alt)
+
+        pointing_data = PointingData(telescope=telescope_ccd_position(),
+                                     star=star_ccd_position(),
+                                     drive_position=drive_position)
+
+        pointing_dataset.append(pointing_data)
+        print(pointing_data)
+    
+    pointing_dataset.save(options.OUTFILE)

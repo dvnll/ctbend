@@ -1,4 +1,4 @@
-from ctbend.ctbendmodel.CTBendBase import CTBendBase
+from ctbend.ctbendbase.CTBendBase import CTBendBase
 import sys
 
 """

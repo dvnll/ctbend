@@ -1,4 +1,5 @@
 import numpy as np
+import pickle
 
 
 class UVCoordinate(object):
@@ -24,6 +25,10 @@ class CCDCoordinate(object):
     def __init__(self, x, y):
         self.x = x
         self.y = y
+
+    def __str__(self):
+        info = "(x, y)=(" + str(self.x) + ", " + str(self.y) + ") px"
+        return info
 
     def __add__(self, other):
         xnew = self.x + other.x
@@ -76,6 +81,11 @@ class DriveCoordinate(object):
         self.azimuth = azimuth
         self.elevation = elevation
 
+    def __str__(self):
+        info = "(az, el)=(" + str(self.azimuth) + ", "
+        info += str(self.elevation) + ") deg"
+        return info
+
 
 class PointingData(object):
     """Dataclass to hold one pointing datum.
@@ -89,24 +99,39 @@ class PointingData(object):
                                           drive system.
     """
 
-    def __init__(self, star, telescope, drive_position, timestamp):
+    def __init__(self, star, telescope, drive_position):
         self.star = star
         self.telescope = telescope
         self.drive_position = drive_position
 
+    def __str__(self):
+        info = "PointingData--------------------------------:" + "\n"
+        info += "Telescope drive: " + str(self.drive_position) + "\n"
+        info += "Star on CCD: " + str(self.star) + "\n"
+        info += "Telescope pointing on CCD: " + str(self.telescope)
+        return info
 
+ 
 class PointingDataset(object):
     """Collection of PointingData.
 
     Attributes:
         pointing_data (list[PointingData]): List of PointingData.
-        pixelscale (float): "Pixel scale" of the CCD camera.
+        pixelscale (float): "Pixel scale" of the CCD camera in arcsec.
     """
 
     def __init__(self, pixelscale):
 
         self.pointing_data_list = []
         self.pixelscale = pixelscale
+
+    def __str__(self):
+        info = "pixel scale: " + str(self.pixelscale) + " arcsec"
+
+        for pointing_data in self.pointing_data_list:
+            info += "\n"
+            info += str(pointing_data)
+        return info
 
     def append(self, pointing_data):
         """
@@ -167,3 +192,14 @@ class PointingDataset(object):
         test.pointing_data_list = self.pointing_Data_list[test_indices]
 
         return train, test
+
+    def save(self, filename):
+        # type (str) -> None
+        """Saves the dataset as a pickle file.
+
+        Args:
+            filename: Filename
+        """
+
+        with open(filename, "wb") as fout:
+            pickle.dump(self, fout)
