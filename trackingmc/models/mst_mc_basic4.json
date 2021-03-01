@@ -1,0 +1,21 @@
+{
+	"star_ra": "5h16m41.4s",
+	"star_dec": "45d59m53s",
+	"location_lat": "52.4264 deg",
+	"location_lon": "13.5352 deg",
+	"location_height": "40 m",
+	"start_timestamp": 1509825600,
+	"delta_t": "5 min",
+	"n_tracking": 240,
+	"telescope_focal_length": "16 m",
+	"ccd_focal_length": "51 mm",
+	"ccd_pixel_size": "5.5 micron",
+	"bending": {
+		   "model": "CTBendBasic4",
+		   "parameters": {"IA": -1,
+		  	          "IE": 1.2,
+		   		  "AN": 0.3,
+		   		  "AW": -0.1}
+	},
+	"sigma": {"size": 0.6, "offset_x1": "0", "offset_x2": "0"}
+}

@@ -1,7 +1,11 @@
 import numpy as np
-import math
+from math import pi
 from scipy.optimize import minimize
 from abc import ABC, abstractmethod
+
+
+def radians(deg):
+    return 2. * pi / 360. * deg
 
 
 class CTBendBase(ABC):
@@ -18,9 +22,8 @@ class CTBendBase(ABC):
         """
 
         self.parameters = parameters
-
-        self.deg2arcsec = 3600.
         self._math = np
+        self.deg2arcsec = 3600.
 
     @abstractmethod
     def azimuth_model_terms(self, az_rad, el_rad):
@@ -70,15 +73,14 @@ class CTBendBase(ABC):
             raise RuntimeError(info)
 
         p = self.model_parameters
-        az_rad = np.radians(az)
-        el_rad = np.radians(el)
+        az_rad = radians(az)
+        el_rad = radians(el)
 
         term_function = {}
         term_function["azimuth"] = self.azimuth_model_terms
         term_function["elevation"] = self.elevation_model_terms
 
         term_dict = term_function[altaz](az_rad, el_rad)
-        
         delta = 0.
         for term in term_dict.keys():
             delta += p[term] * term_dict[term]
@@ -88,54 +90,55 @@ class CTBendBase(ABC):
     def delta_azimuth_derivative_phi(self, az, el):
 
         p = self.model_parameters
-        az_rad = np.radians(az)
-        el_rad = np.radians(el)
+        az_rad = radians(az)
+        el_rad = radians(el)
 
         term_dict = self.azimuth_derivative_phi(az_rad, el_rad)
         delta = 0.
         for term in term_dict.keys():
             delta += p[term] * term_dict[term]
 
-        return np.radians(delta)
+        delta = radians(delta)
+        return delta
 
     def delta_elevation_derivative_phi(self, az, el):
 
         p = self.model_parameters
-        az_rad = np.radians(az)
-        el_rad = np.radians(el)
+        az_rad = radians(az)
+        el_rad = radians(el)
 
         term_dict = self.elevation_derivative_phi(az_rad, el_rad)
         delta = 0.
         for term in term_dict.keys():
             delta += p[term] * term_dict[term]
 
-        return np.radians(delta)
+        return radians(delta)
 
     def delta_azimuth_derivative_theta(self, az, el):
 
         p = self.model_parameters
-        az_rad = np.radians(az)
-        el_rad = np.radians(el)
+        az_rad = radians(az)
+        el_rad = radians(el)
 
         term_dict = self.azimuth_derivative_theta(az_rad, el_rad)
         delta = 0.
         for term in term_dict.keys():
             delta += p[term] * term_dict[term]
 
-        return np.radians(delta)
+        return radians(delta)
 
     def delta_elevation_derivative_theta(self, az, el):
 
         p = self.model_parameters
-        az_rad = np.radians(az)
-        el_rad = np.radians(el)
+        az_rad = radians(az)
+        el_rad = radians(el)
 
         term_dict = self.elevation_derivative_theta(az_rad, el_rad)
         delta = 0.
         for term in term_dict.keys():
             delta += p[term] * term_dict[term]
 
-        return np.radians(delta)
+        return radians(delta)
 
     def delta_azimuth(self, az, el):
         # type: (float, float) -> float
@@ -175,21 +178,26 @@ class CTBendBase(ABC):
 
         return np.unique(name_list)
 
+    def serialize(self):
+        return {"model_name": self.modelname(), "parameters": self.parameters}
+
     @property
     def model_parameters(self):
-
+        if hasattr(self, "parameters_are_distributions"):
+            parameter_dict = {}
+            for parameter in self.model_parameter_names:
+                parameter_dict[parameter] = self.parameters["priors"][parameter]
+            return parameter_dict
         try:
             mean = self.parameters["model"]["mean"]
         except KeyError:
             mean = self.parameters["mean"]
-        return mean
-        """
-        parameter_dict = {}
-        for parameter in self.model_parameter_names:
-            parameter_dict[parameter] = self.parameters["priors"][parameter]
+        except KeyError:
+            mean = self.parameters
 
-        return parameter_dict
-        """
+        return mean
+ 
+
     def invert_bending_model(self, azimuth, elevation, verbose=False):
 
         uncorrected_azimuth = []

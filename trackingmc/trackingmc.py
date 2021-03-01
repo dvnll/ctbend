@@ -144,9 +144,17 @@ if __name__ == "__main__":
 
     pprint(config)
     setup = MCSetup(config)
-    logger.info("Pixel scale: " + str(setup.pixel_scale.to(u.arcsec)) + " arcsec")
+    info = "Pixelscale: " + str(setup.pixel_scale.to(u.arcsec).value)
+    info += " arcsec"
+    logger.info(info)
 
-    pointing_dataset = PointingDataset(setup.pixel_scale.to(u.arcsec).value)
+    pointing_model_for_data_taking = CTBend.ConstantOffsetModel(
+                                    parameters={"model": {"mean": {"azimuth_offset_deg": 0.,
+                                                                   "elevation_offset_deg": 0.}}})
+
+    pointing_dataset = PointingDataset(
+                pixelscale=setup.pixel_scale.to(u.arcsec).value,
+                pointing_model=pointing_model_for_data_taking.serialize())
 
     for timestamp in setup.tracking_timestamps():
 
@@ -262,6 +270,6 @@ if __name__ == "__main__":
                                      drive_position=drive_position)
 
         pointing_dataset.append(pointing_data)
-        print(pointing_data)
+        #print(pointing_data)
     
     pointing_dataset.save(options.OUTFILE)

@@ -1,38 +1,60 @@
 from ctbend.ctbendbase.CTBendBase import CTBendBase
 import sys
 
-"""
+
 class ConstantOffsetModel(CTBendBase):
 
-    def __init__(self, parameters):
+    def __init__(self, parameters={"model":
+                                    {"mean":
+                                        {"azimuth_offset_deg": 0.,
+                                         "elevation_offset_deg": 0.
+                                        }
+                                    }
+                                   }):
+        """The signature of this class is a bit complicated. Thats the price
+           to pay for the other ease to be possible."""
 
-        self.azimuth_parameter_name = "DeltaAzimuth"
-        self.elevation_parameter_name = "DeltaElevation"
+        
+        self.azimuth_parameter_name = "azimuth_offset_deg"
+        self.elevation_parameter_name = "elevation_offset_deg"
+        assert self.azimuth_parameter_name in list(parameters["model"]["mean"].keys())
+        assert self.elevation_parameter_name in list(parameters["model"]["mean"].keys())
+        self.azimuth_offset_deg = parameters["model"]["mean"]["azimuth_offset_deg"]
+        self.elevation_offset_deg = parameters["model"]["mean"]["elevation_offset_deg"]
 
-        azimuth_offset_deg = parameters["azimuth_offset_deg"]
-        elevation_offset_deg = parameters["elevation_offset_deg"]
-
-        parameters = {"model": {}}
-        az_name = self.azimuth_parameter_name
-        el_name = self.elevation_parameter_name
-        parameters["model"]["mean"] = {az_name: azimuth_offset_deg,
-                                       el_name: elevation_offset_deg}
-
-        super().__init__(parameters)
+        super().__init__(parameters=parameters)
         self.name = self.modelname()
 
     def azimuth_model_terms(self, az_rad, el_rad):
 
         terms = {self.azimuth_parameter_name: 1.}
+        return terms
 
+    def azimuth_derivative_phi(self, az_rad, el_rad):
+
+        terms = {self.azimuth_parameter_name: 0.}
+        return terms
+
+    def azimuth_derivative_theta(self, az_rad, el_rad):
+
+        terms = {self.elevation_parameter_name: 0.}
         return terms
 
     def elevation_model_terms(self, az_rad, el_rad):
 
         terms = {self.elevation_parameter_name: 1.}
-
         return terms
-"""
+
+    def elevation_derivative_phi(self, az_rad, el_rad):
+
+        terms = {self.elevation_parameter_name: 0.}
+        return terms
+
+    def elevation_derivative_theta(self, az_rad, el_rad):
+
+        terms = {self.elevation_parameter_name: 0.}
+        return terms
+
 
 class CTBendBasic4(CTBendBase):
 

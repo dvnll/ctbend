@@ -1,5 +1,6 @@
 import numpy as np
 import pickle
+from ctbend.ctbendbase import CTBend as CTBend
 
 
 class UVCoordinate(object):
@@ -118,12 +119,21 @@ class PointingDataset(object):
     Attributes:
         pointing_data (list[PointingData]): List of PointingData.
         pixelscale (float): "Pixel scale" of the CCD camera in arcsec.
+        bending_model (dict): Description of the pointing model
+                              used during data-taking.
     """
 
-    def __init__(self, pixelscale):
+    def __init__(self, pixelscale, pointing_model):
 
-        self.pointing_data_list = []
+        self.pointing_data_list = np.array([])
         self.pixelscale = pixelscale
+        self._pointing_model = pointing_model
+
+    def pointing_model(self):
+        parameters = self._pointing_model["parameters"]
+        model_name = self._pointing_model["model_name"]
+
+        return getattr(CTBend, model_name)(parameters)
 
     def __str__(self):
         info = "pixel scale: " + str(self.pixelscale) + " arcsec"
@@ -140,16 +150,36 @@ class PointingDataset(object):
         Args:
             pointing_data (PointingData): Data to be appended.
         """
-        self.pointing_data_list.append(pointing_data)
+        self.pointing_data_list = np.append(self.pointing_data_list,
+                                            pointing_data)
+
+    @property
+    def elevation(self):
+        el = []
+        for drive_position in self.drive_position():
+            elevation = drive_position.elevation
+            el.append(elevation)
+
+        return np.array(el)
+
+    @property
+    def azimuth(self):
+        az = []
+        for drive_position in self.drive_position():
+            azimuth = drive_position.azimuth
+            az.append(azimuth)
+
+        return np.array(az)
 
     def old_bending_correction(self, bending_model):
 
         inverter_func = bending_model.invert_bending_model
-        azimuth0, elevation0 = inverter_func(self.azimuth,
-                                             self.elevation)
+        azimuth = self.azimuth
+        elevation = self.elevation
+        azimuth0, elevation0 = inverter_func(azimuth, elevation)
 
-        daz0 = self.azimuth - azimuth0
-        del0 = self.elevation - elevation0
+        daz0 = azimuth - azimuth0
+        del0 = elevation - elevation0
 
         return daz0, del0
 
@@ -166,7 +196,7 @@ class PointingDataset(object):
             np.array ...
         """
 
-        for pointing_data in self.pointig_data_list:
+        for pointing_data in self.pointing_data_list:
 
             delta_ccd = pointing_data.star - pointing_data.telescope
             delta_ccd = delta_ccd.rotate(alpha_deg)
@@ -175,21 +205,26 @@ class PointingDataset(object):
             yield uv
 
     def __len__(self):
-        return len(self.x1_star)
+        # type (None) -> int
+        return len(self.pointing_data_list)
 
-    def train_test_split(self, train_fraction=0.8):
+    def train_test_split(self, train_fraction):
+        # type (float) -> PointingDataset, PointingDataset
 
         train_length = int(len(self) * train_fraction)
 
         indices = np.random.permutation(len(self))
         train_indices = indices[:train_length]
         test_indices = indices[train_length:]
-
-        train = PointingDataset(pixelscale=self.pixelscale)
+        
+        train = PointingDataset(pixelscale=self.pixelscale,
+                                pointing_model=self._pointing_model)
         train.pointing_data_list = self.pointing_data_list[train_indices]
 
-        test = PointingDataset(pixelscale=self.pixelscale)
-        test.pointing_data_list = self.pointing_Data_list[test_indices]
+        test = PointingDataset(pixelscale=self.pixelscale,
+                               pointing_model=self._pointing_model)
+
+        test.pointing_data_list = self.pointing_data_list[test_indices]
 
         return train, test
 

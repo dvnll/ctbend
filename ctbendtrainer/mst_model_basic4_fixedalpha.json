@@ -1,0 +1,28 @@
+{
+"model_name": "CTBendBasic4",
+"bending_priors":
+	{
+		"IA": {"distribution": "Laplace",
+			"mu": "0 deg",
+			"b": "10 deg"},
+		"IE": {"distribution": "Laplace",
+			"mu": "0 deg",
+			"b": "10 deg"},
+		"AW": {"distribution": "Laplace",
+			"mu": "0 deg",
+			"b": "10 deg"},
+		"AN": {"distribution": "Laplace",
+			"mu": "0 deg",
+			"b": "10 deg"}
+	},
+"nuisance_priors":
+	{
+		"nu": {"lam": 1},
+
+		"alpha": {"distribution": "fixed",
+			  "value": "0 deg"},
+
+		"sigma": {"median": 1,
+			  "q90": 5}	
+	}
+}
