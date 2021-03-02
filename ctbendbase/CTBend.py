@@ -4,23 +4,22 @@ import sys
 
 class ConstantOffsetModel(CTBendBase):
 
-    def __init__(self, parameters={"model":
-                                    {"mean":
-                                        {"azimuth_offset_deg": 0.,
-                                         "elevation_offset_deg": 0.
-                                        }
-                                    }
-                                   }):
+    def __init__(self, parameters={"model": {"mean":
+                                             {"azimuth_offset_deg": 0.,
+                                              "elevation_offset_deg": 0.}}}):
+
         """The signature of this class is a bit complicated. Thats the price
            to pay for the other ease to be possible."""
 
-        
         self.azimuth_parameter_name = "azimuth_offset_deg"
         self.elevation_parameter_name = "elevation_offset_deg"
-        assert self.azimuth_parameter_name in list(parameters["model"]["mean"].keys())
-        assert self.elevation_parameter_name in list(parameters["model"]["mean"].keys())
-        self.azimuth_offset_deg = parameters["model"]["mean"]["azimuth_offset_deg"]
-        self.elevation_offset_deg = parameters["model"]["mean"]["elevation_offset_deg"]
+
+        in_parameters = parameters["model"]["mean"]
+        assert self.azimuth_parameter_name in list(in_parameters.keys())
+        assert self.elevation_parameter_name in list(in_parameters.keys())
+
+        self.azimuth_offset_deg = in_parameters["azimuth_offset_deg"]
+        self.elevation_offset_deg = in_parameters["elevation_offset_deg"]
 
         super().__init__(parameters=parameters)
         self.name = self.modelname()
@@ -87,11 +86,11 @@ class CTBendBasic4(CTBendBase):
                  }
 
         return terms
+
     def azimuth_derivative_theta(self, az_rad, el_rad):
 
         cos = self._math.cos
         sin = self._math.sin
-        tan = self._math.tan
 
         terms = {"IA": 0.,
                  "AW": -cos(az_rad) / (cos(el_rad) * cos(el_rad)),
@@ -99,13 +98,14 @@ class CTBendBasic4(CTBendBase):
                  }
 
         return terms
+
     def elevation_model_terms(self, az_rad, el_rad):
 
         cos = self._math.cos
         sin = self._math.sin
 
         terms = {"IE": 1.,
-                 "AW":-sin(az_rad),
+                 "AW": -sin(az_rad),
                  "AN": -cos(az_rad),
                  }
 
@@ -115,7 +115,6 @@ class CTBendBasic4(CTBendBase):
 
         cos = self._math.cos
         sin = self._math.sin
-        tan = self._math.tan
 
         terms = {"IE": 0.,
                  "AW": -cos(az_rad),
@@ -125,10 +124,6 @@ class CTBendBasic4(CTBendBase):
         return terms
 
     def elevation_derivative_theta(self, az_rad, el_rad):
-
-        cos = self._math.cos
-        sin = self._math.sin
-        tan = self._math.tan
 
         terms = {"IE": 0.,
                  "AW": 0.,
@@ -180,7 +175,6 @@ class CTBendBasic8(CTBendBase):
 
         cos = self._math.cos
         sin = self._math.sin
-        tan = self._math.tan
 
         terms = {"IA": 0.,
                  "NPAE": -1. / (cos(el_rad) * cos(el_rad)),
@@ -198,7 +192,7 @@ class CTBendBasic8(CTBendBase):
         sin = self._math.sin
 
         terms = {"IE": 1.,
-                 "AW":-sin(az_rad),
+                 "AW": -sin(az_rad),
                  "AN": -cos(az_rad),
                  "TF": cos(el_rad)
                  }
@@ -209,7 +203,6 @@ class CTBendBasic8(CTBendBase):
 
         cos = self._math.cos
         sin = self._math.sin
-        tan = self._math.tan
 
         terms = {"IE": 0.,
                  "AW": -cos(az_rad),
@@ -221,9 +214,7 @@ class CTBendBasic8(CTBendBase):
 
     def elevation_derivative_theta(self, az_rad, el_rad):
 
-        cos = self._math.cos
         sin = self._math.sin
-        tan = self._math.tan
 
         terms = {"IE": 0.,
                  "AW": 0.,
@@ -239,22 +230,3 @@ def bending_factory(model_json):
     requested_model = model_json["name"]
     return getattr(sys.modules[__name__],
                    requested_model)(parameters=model_json)
-
-if __name__ == "__main__":
-
-    import numpy as np
-    model_list = ["CTBendBasic4", "CTBendBasic8", ]
-
-    for model in model_list:
-        print(model)
-        testmodel = globals()[model](parameters={})
-        print("-h")
-        parameter_list = testmodel.model_parameter_names
-        parameters = {"model": {"mean": {}}}
-
-        for parameter in parameter_list:
-            parameters["model"]["mean"][parameter] = np.random.uniform(-3, 3)
-
-        testmodel = globals()[model](parameters) 
-    print("-------------------------------------------------")
-    print("-------------------------------------------------")

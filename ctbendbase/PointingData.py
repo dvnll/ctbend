@@ -112,7 +112,7 @@ class PointingData(object):
         info += "Telescope pointing on CCD: " + str(self.telescope)
         return info
 
- 
+
 class PointingDataset(object):
     """Collection of PointingData.
 
@@ -216,7 +216,7 @@ class PointingDataset(object):
         indices = np.random.permutation(len(self))
         train_indices = indices[:train_length]
         test_indices = indices[train_length:]
-        
+
         train = PointingDataset(pixelscale=self.pixelscale,
                                 pointing_model=self._pointing_model)
         train.pointing_data_list = self.pointing_data_list[train_indices]

@@ -18,7 +18,7 @@ class CTBendBase(ABC):
         """Constructor.
 
         Args:
-            parameters: parameters of the bending model.
+            parameters: Dictionary with parameters of the bending model.
         """
 
         self.parameters = parameters
@@ -46,7 +46,7 @@ class CTBendBase(ABC):
         pass
 
     @abstractmethod
-    def azimuth_derivative_theta(self, az_rad, el_rad):
+    def elevation_derivative_theta(self, az_rad, el_rad):
         pass
 
     @classmethod
@@ -68,7 +68,7 @@ class CTBendBase(ABC):
         """
 
         if altaz not in ["azimuth", "elevation"]:
-            info ="altaz argument must be either azimuth or"
+            info = "altaz argument must be either azimuth or"
             info += " elevation"
             raise RuntimeError(info)
 
@@ -185,8 +185,8 @@ class CTBendBase(ABC):
     def model_parameters(self):
         if hasattr(self, "parameters_are_distributions"):
             parameter_dict = {}
-            for parameter in self.model_parameter_names:
-                parameter_dict[parameter] = self.parameters["priors"][parameter]
+            for par in self.model_parameter_names:
+                parameter_dict[par] = self.parameters["priors"][par]
             return parameter_dict
         try:
             mean = self.parameters["model"]["mean"]
@@ -196,24 +196,22 @@ class CTBendBase(ABC):
             mean = self.parameters
 
         return mean
- 
 
-    def invert_bending_model(self, azimuth, elevation, verbose=False):
+    def invert_bending_model(self, azimuth, elevation,
+                             verbose=False, tolerance=1.e-8):
 
         uncorrected_azimuth = []
         uncorrected_elevation = []
-        tolerance = 1.e-8
 
         def _telescope_pointing_inverter_loss_function(x, az, el):
             az0 = x[0]
             el0 = x[1]
             a = np.abs(az - az0 - self.delta_azimuth(az0, el0))
             b = np.abs(el - el0 - self.delta_elevation(az0, el0))
-    
+
             loss = a + b
 
             return loss
-
 
         for az, el in zip(azimuth, elevation):
             range_error = False
