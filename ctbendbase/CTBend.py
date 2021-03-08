@@ -4,22 +4,17 @@ import sys
 
 class ConstantOffsetModel(CTBendBase):
 
-    def __init__(self, parameters={"model": {"mean":
-                                             {"azimuth_offset_deg": 0.,
-                                              "elevation_offset_deg": 0.}}}):
-
-        """The signature of this class is a bit complicated. Thats the price
-           to pay for the other ease to be possible."""
+    def __init__(self, parameters={"azimuth_offset_deg": 0.,
+                                   "elevation_offset_deg": 0.}):
 
         self.azimuth_parameter_name = "azimuth_offset_deg"
         self.elevation_parameter_name = "elevation_offset_deg"
 
-        in_parameters = parameters["model"]["mean"]
-        assert self.azimuth_parameter_name in list(in_parameters.keys())
-        assert self.elevation_parameter_name in list(in_parameters.keys())
+        assert self.azimuth_parameter_name in list(parameters.keys())
+        assert self.elevation_parameter_name in list(parameters.keys())
 
-        self.azimuth_offset_deg = in_parameters["azimuth_offset_deg"]
-        self.elevation_offset_deg = in_parameters["elevation_offset_deg"]
+        self.azimuth_offset_deg = parameters["azimuth_offset_deg"]
+        self.elevation_offset_deg = parameters["elevation_offset_deg"]
 
         super().__init__(parameters=parameters)
         self.name = self.modelname()

@@ -103,7 +103,7 @@ class MCSetup(object):
     @property
     def bending(self):
         parameters = self.config_dict["bending"]["parameters"]
-        parameters0 = {"mean": parameters}
+        parameters0 = parameters
         return getattr(CTBend, self.config_dict["bending"]["model"])(parameters0)
 
     def measured_x1x2(self, true_x1, true_x2):
@@ -149,8 +149,8 @@ if __name__ == "__main__":
     logger.info(info)
 
     pointing_model_for_data_taking = CTBend.ConstantOffsetModel(
-                                    parameters={"model": {"mean": {"azimuth_offset_deg": 0.,
-                                                                   "elevation_offset_deg": 0.}}})
+                                    parameters={"azimuth_offset_deg": 0.,
+                                                "elevation_offset_deg": 0.})
 
     pointing_dataset = PointingDataset(
                 pixelscale=setup.pixel_scale.to(u.arcsec).value,
@@ -158,7 +158,7 @@ if __name__ == "__main__":
 
     for timestamp in setup.tracking_timestamps():
 
-        def random_star_altaz(minimal_altitude_deg : float = 5):
+        def random_star_altaz(minimal_altitude_deg: float = 5):
             """Returns random altaz coordinates for a test star.
 
                 Args:

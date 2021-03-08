@@ -188,18 +188,36 @@ class CTBendBase(ABC):
             for par in self.model_parameter_names:
                 parameter_dict[par] = self.parameters["priors"][par]
             return parameter_dict
-        try:
-            mean = self.parameters["model"]["mean"]
-        except KeyError:
-            mean = self.parameters["mean"]
-        except KeyError:
-            mean = self.parameters
 
-        return mean
+        return self.parameters
 
-    def invert_bending_model(self, azimuth, elevation,
-                             verbose=False, tolerance=1.e-8):
+    def invert_bending_model(self,
+                             azimuth,
+                             elevation,
+                             verbose=False,
+                             tolerance=1.e-8):
+        """Invert the current bending model, i.e. given input (azimuth,
+           elevation), find the altaz coordinates
+           to which the telescope would be pointing without correction.
 
+           Technically, values for az0 and el0 are searched such that 
+           the difference between the prediction BendingModel(az0, el0)
+           and the input altaz is minimized.
+
+           Args:
+           azimuth (List[float]): List of corrected azimuth coordinates
+                                  in degrees.
+           elevation (List[float]): List of corrected elevation coordinates
+                                    in degrees.
+           verbose (bool): Flag to control the verbosity of the minimization
+                           algorithm.
+           tolerance (float): Tolerance parameter of the minimization
+                              algorithm.
+
+           Returns:
+           altaz (List[float], List[float]): Uncorrected altaz coordinates in
+                                             degrees.
+        """
         uncorrected_azimuth = []
         uncorrected_elevation = []
 
