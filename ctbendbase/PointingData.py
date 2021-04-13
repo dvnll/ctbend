@@ -43,9 +43,10 @@ class CCDCoordinate(object):
 
     def rotate(self, alpha_deg):
         """
-        QQQQQQQQQQQ
+        Rotate the CCD coordinate by the angle alpha_deg.
         Args:
-            alpha_deg: CCD camera rotation angle in degrees
+            alpha_deg: Rotation angle in degrees, e.g. CCD camera rotation
+                       angle.
         """
 
         alpha_rad = np.radians(alpha_deg)
@@ -172,7 +173,12 @@ class PointingDataset(object):
         return np.array(az)
 
     def old_bending_correction(self, bending_model):
+        """Returns the bending correction that was applied while taking data.
 
+           Args:
+                bending_model (CTBendBase): Bending model applied while taking
+                                            data.
+        """
         inverter_func = bending_model.invert_bending_model
         azimuth = self.azimuth
         elevation = self.elevation
@@ -188,12 +194,13 @@ class PointingDataset(object):
             yield pointing_data.drive_position
 
     def uv(self, alpha_deg=0):
-        """aa
+        """Returns bending data points in the UV-plane.
+
         Args:
-            alpha_deg: CCD rotation angle in degrees.
+            alpha_deg (float): CCD rotation angle in degrees.
 
         Returns:
-            np.array ...
+            ctbend.UVCoordinate
         """
 
         for pointing_data in self.pointing_data_list:
@@ -201,7 +208,6 @@ class PointingDataset(object):
             delta_ccd = pointing_data.star - pointing_data.telescope
             delta_ccd = delta_ccd.rotate(alpha_deg)
             uv = delta_ccd.project2uv(self.pixelscale)
-
             yield uv
 
     def __len__(self):

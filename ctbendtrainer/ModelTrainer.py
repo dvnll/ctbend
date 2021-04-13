@@ -14,111 +14,16 @@ import ctbend.ctbendtrainer.CTBendGeometry as CTBendGeometry
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
-def parameter_prior_distributions(self):
-    """Monkey patch for the _model_parameters method of a CTBendBase
-       model.
-    """
-    print("CALL")
-    parameter_dict = {}
-    for parameter in self.model_parameter_names:
-        parameter_dict[parameter] = self.parameters["priors"][parameter]
-
-    return parameter_dict
- 
-
-def _model_v(model, az_drive, el_drive, daz0, del0):
-
-    az_star = az_drive - daz0
-    el_star = el_drive - del0
-
-    daz0_tensor = tensor.as_tensor_variable(daz0)
-    del0_tensor = tensor.as_tensor_variable(del0)
-    """
-    mis_el = self.delta_elevation(az_drive, el_drive)
-    mis_az = self.delta_azimuth(az_drive, el_drive)
-    """
-    mis_el = model.delta_elevation(az_star, el_star)
-    mis_az = model.delta_azimuth(az_star, el_star)
-
-    el_star_tensor = tensor.as_tensor_variable(el_star)
-    az_star_tensor = tensor.as_tensor_variable(az_star)
-
-    delta_az = daz0_tensor - mis_az
-    delta_el = del0_tensor - mis_el
-
-    az_tel = az_star_tensor + delta_az
-    el_tel = el_star_tensor + delta_el
-
-    telescope = CTBendGeometry.XYZVector(az_tel, el_tel)
-
-    star = CTBendGeometry.XYZVector(az_star, el_star)
-    image = telescope * (star * telescope) * 2. - star
-
-    e_theta = CTBendGeometry.e_theta(az_tel,
-                                     el_tel,
-                                     model.delta_azimuth_derivative_theta(az_tel, el_tel),
-                                     model.delta_elevation_derivative_theta(az_tel, el_tel))
-
-    length = 1. / (image * telescope)
-
-    image_uv = image * length
-
-    return image_uv * e_theta
-
-
-def _model_u(model, az_drive, el_drive, daz0, del0):
-
-    az_star = az_drive - daz0
-    el_star = el_drive - del0
-
-    daz0_tensor = tensor.as_tensor_variable(daz0)
-    del0_tensor = tensor.as_tensor_variable(del0)
-
-    mis_el = model.delta_elevation(az_star, el_star)
-    mis_az = model.delta_azimuth(az_star, el_star)
-    """
-    mis_el = self.delta_elevation(az_drive, el_drive)
-    mis_az = self.delta_azimuth(az_drive, el_drive)
-    """
-    el_star_tensor = tensor.as_tensor_variable(el_star)
-    az_star_tensor = tensor.as_tensor_variable(az_star)
-
-    delta_az = daz0_tensor - mis_az
-    delta_el = del0_tensor - mis_el
-
-    az_tel = az_star_tensor + delta_az
-    el_tel = el_star_tensor + delta_el
-
-    telescope = CTBendGeometry.XYZVector(az_tel, el_tel)
-
-    star = CTBendGeometry.XYZVector(az_star, el_star)
-    image = telescope * (star * telescope) * 2. - star
-
-    e_phi = CTBendGeometry.e_phi(az_tel,
-                                 el_tel,
-                                 model.delta_azimuth_derivative_phi(az_tel, el_tel),
-                                 model.delta_elevation_derivative_phi(az_tel, el_tel))
-
-    length = 1. / (image * telescope)
-
-    image_uv = image * length
-
-    return image_uv * e_phi
-
-
 
 class ModelTrainer(object):
 
     def __init__(self,
                  training_dataset: ctbend.PointingDataset,
-                 bending_model_dict,
+                 bending_model_dict: dict,
                  n_cpu_cores: int):
-
-        #self.old_bending_model = options.old_bending_model
 
         self.n_cpu_cores = n_cpu_cores
         self.bending_model_dict = bending_model_dict
-        #model_name = self.bending_model_dict["model_name"]
         try:
             model_name = bending_model_dict["model_name"]
             self.model = getattr(ctbend.CTBend, model_name)(
@@ -126,8 +31,6 @@ class ModelTrainer(object):
             self.model.parameters_are_distributions = True
 
         except AttributeError as e:
-            print(type(e))
-            print(e)
             raise RuntimeError()
         except Exception as e:
             info = "Unknown exception while loading CTBend model: "
@@ -139,7 +42,8 @@ class ModelTrainer(object):
         self.logger = logging.getLogger(__name__)
         self.logger.info("Training size: " + str(len(training_dataset)))
 
-    def train(self, n_samples=4000, burn=1000, tuning_steps=1000, progressbar=False):
+    def train(self, n_samples=4000, burn=1000,
+              tuning_steps=1000, progressbar=False):
 
         parameters = self.model.model_parameter_names
         
@@ -149,25 +53,31 @@ class ModelTrainer(object):
             azimuth.append(drive_position.azimuth)
             elevation.append(drive_position.elevation)
 
+        bending_prior_dict = self.bending_model_dict["bending_priors"]
         with pm.Model() as model:
 
             for parameter_name in parameters:
-                distribution = getattr(pm, self.bending_model_dict["bending_priors"][parameter_name]["distribution"])
+
+                distribution = getattr(
+                            pm,
+                            bending_prior_dict[parameter_name]["distribution"])
                 prior_parameter_values = {"name": parameter_name}
-                for key in self.bending_model_dict["bending_priors"][parameter_name].keys():
+                for key in bending_prior_dict[parameter_name].keys():
                     if key == "distribution":
                         continue
-                    parameter_value = Quantity(self.bending_model_dict["bending_priors"][parameter_name][key])
+                    parameter_value = Quantity(
+                                        bending_prior_dict[parameter_name][key])
  
                     prior_parameter_values[key] = parameter_value.to(units.deg).value
 
                 prior_dict = self.model.parameters["priors"]
                 prior_dict[parameter_name] = distribution(**prior_parameter_values)
 
+            nuisance_priors = self.bending_model_dict["nuisance_priors"]
 
             def get_sigma_prior():
-                pixel_sigma_median = self.bending_model_dict["nuisance_priors"]["sigma"]["median"]
-                pixel_sigma_90quantile = self.bending_model_dict["nuisance_priors"]["sigma"]["q90"]
+                pixel_sigma_median = nuisance_priors["sigma"]["median"]
+                pixel_sigma_90quantile = nuisance_priors["sigma"]["q90"]
                     
                 def pixel_sigma_mu(pixel_sigma_median):
                     return log(pixel_sigma_median)
@@ -179,7 +89,8 @@ class ModelTrainer(object):
 
                 sigma = pm.Lognormal("sigma",
                                      mu=pixel_sigma_mu(pixel_sigma_median),
-                                     sd=pixel_sigma_sd(pixel_sigma_90quantile, pixel_sigma_median))
+                                     sd=pixel_sigma_sd(pixel_sigma_90quantile,
+                                                       pixel_sigma_median))
 
                 pixelscale = self.training_dataset.pixelscale
                 arcsec2deg = 3600
@@ -189,28 +100,103 @@ class ModelTrainer(object):
                 return sigma
 
             def get_nu_prior():
-                nu_parameter = float(self.bending_model_dict["nuisance_priors"]["nu"]["lam"])
+                nu_parameter = float(nuisance_priors["nu"]["lam"])
                 nu = pm.Exponential("nu", lam=nu_parameter)
                 return nu
 
             def get_alpha_prior():
 
-                if self.bending_model_dict["nuisance_priors"]["alpha"]["distribution"] == "fixed":
-                    alpha = Quantity(self.bending_model_dict["nuisance_priors"]["alpha"]["value"])
+                if nuisance_priors["alpha"]["distribution"] == "fixed":
+                    alpha = Quantity(nuisance_priors["alpha"]["value"])
                     return alpha.to(units.deg).value
 
-                distribution = getattr(pm, self.bending_model_dict["nuisance_priors"]["alpha"]["distribution"])
+                distribution = getattr(pm, nuisance_priors["alpha"]["distribution"])
                 prior_parameter_values = {"name": "alpha"}
-                for key in self.bending_model_dict["nuisance_priors"]["alpha"].keys():
+                for key in nuisance_priors["alpha"].keys():
                     if key == "distribution":
                         continue
-                    parameter_value = Quantity(self.bending_model_dict["nuisance_priors"]["alpha"][key])
+                    parameter_value = Quantity(nuisance_priors["alpha"][key])
  
                     prior_parameter_values[key] = parameter_value.to(units.deg).value
 
                 alpha = distribution(**prior_parameter_values)
 
                 return alpha
+
+            def _model_u(model, az_drive, el_drive, daz0, del0):
+
+                az_star = az_drive - daz0
+                el_star = el_drive - del0
+
+                daz0_tensor = tensor.as_tensor_variable(daz0)
+                del0_tensor = tensor.as_tensor_variable(del0)
+
+                mis_el = model.delta_elevation(az_star, el_star)
+                mis_az = model.delta_azimuth(az_star, el_star)
+                
+                el_star_tensor = tensor.as_tensor_variable(el_star)
+                az_star_tensor = tensor.as_tensor_variable(az_star)
+
+                delta_az = daz0_tensor - mis_az
+                delta_el = del0_tensor - mis_el
+
+                az_tel = az_star_tensor + delta_az
+                el_tel = el_star_tensor + delta_el
+
+                telescope = CTBendGeometry.XYZVector(az_tel, el_tel)
+
+                star = CTBendGeometry.XYZVector(az_star, el_star)
+                image = telescope * (star * telescope) * 2. - star
+
+                e_phi = CTBendGeometry.e_phi(
+                    az_tel,
+                    el_tel,
+                    model.delta_azimuth_derivative_phi(az_tel, el_tel),
+                    model.delta_elevation_derivative_phi(az_tel, el_tel))
+
+                length = 1. / (image * telescope)
+
+                image_uv = image * length
+
+                return image_uv * e_phi
+
+            def _model_v(model, az_drive, el_drive, daz0, del0):
+
+                az_star = az_drive - daz0
+                el_star = el_drive - del0
+
+                daz0_tensor = tensor.as_tensor_variable(daz0)
+                del0_tensor = tensor.as_tensor_variable(del0)
+                
+                mis_el = model.delta_elevation(az_star, el_star)
+                mis_az = model.delta_azimuth(az_star, el_star)
+
+                el_star_tensor = tensor.as_tensor_variable(el_star)
+                az_star_tensor = tensor.as_tensor_variable(az_star)
+
+                delta_az = daz0_tensor - mis_az
+                delta_el = del0_tensor - mis_el
+
+                az_tel = az_star_tensor + delta_az
+                el_tel = el_star_tensor + delta_el
+
+                telescope = CTBendGeometry.XYZVector(az_tel, el_tel)
+
+                star = CTBendGeometry.XYZVector(az_star, el_star)
+                image = telescope * (star * telescope) * 2. - star
+
+                e_theta = CTBendGeometry.e_theta(
+                    az_tel,
+                    el_tel,
+                    model.delta_azimuth_derivative_theta(az_tel, el_tel),
+                    model.delta_elevation_derivative_theta(az_tel, el_tel))
+
+                length = 1. / (image * telescope)
+
+                image_uv = image * length
+
+                return image_uv * e_theta
+
 
             sigma = get_sigma_prior()
             nu = get_nu_prior()
