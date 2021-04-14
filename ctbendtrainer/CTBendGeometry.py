@@ -1,5 +1,6 @@
 import numpy as np
 import math
+from typing import Union, List
 
 try:
     import pymc3 as pm
@@ -9,22 +10,29 @@ except ImportError:
     print(info)
 
 
-def radians(deg):
+def radians(deg: float):
     return deg / 360. * 2. * math.pi
+
+
+class XYZVector:
+    pass
 
 
 class XYZVector(object):
 
-    """
-    Unit vector in the horizon/AltAz system
-
-    Constructor:
-    az: Azimuth in degrees
-    el: Altitude/elevation in degrees
+    """Unit vector in the horizon/AltAz system.
     """
 
-    def __init__(self, az, el, math=np):
+    def __init__(self,
+                 az: Union[float, List[float]],
+                 el: Union[float, List[float]],
+                 math=np):
 
+        """Args:
+                az: Azimuth in degrees.
+                el: Elevation in degrees.
+                math: Library for math computations. Either numpy or pymc3.
+        """
         az_rad = radians(az)
         el_rad = radians(el)
 
@@ -43,7 +51,7 @@ class XYZVector(object):
     def alt(self):
         return np.degrees(np.arcsin(self.z))
 
-    def __mul__(self, other):
+    def __mul__(self, other: Union[float, XYZVector]) -> XYZVector:
 
         if isinstance(other, XYZVector):
             product = self.x * other.x
@@ -62,10 +70,13 @@ class XYZVector(object):
 
         return res
 
-    def __rmul__(self, other):
+    def __rmul__(self, other: Union[float, XYZVector]):
         return self * other
 
-    def distance(self, other):
+    def distance(self, other: XYZVector) -> float:
+
+        """Angular distance between two XYZVectors in arcsecs.
+        """
         scalar_product = self * other
         scalar_product = scalar_product.eval()
         scalar_product[np.abs(scalar_product > 1.)] = 1.
@@ -75,7 +86,7 @@ class XYZVector(object):
 
         return dist_arcsec
 
-    def __sub__(self, other):
+    def __sub__(self, other: XYZVector) -> XYZVector:
 
         x = self.x - other.x
         y = self.y - other.y
@@ -88,7 +99,7 @@ class XYZVector(object):
 
         return diff
 
-    def __add__(self, other):
+    def __add__(self, other: XYZVector) -> XYZVector:
 
         x = self.x + other.x
         y = self.y + other.y
@@ -107,9 +118,15 @@ class XYZVector(object):
 
 
 class e_phi(XYZVector):
+    """Unit vector in direction of phi in XYZ-coordinates.
+    """
 
-    def __init__(self, az_tel, el_tel, delta_az_derivative_phi,
-                 delta_el_derivative_phi, math=np):
+    def __init__(self,
+                 az_tel: float,
+                 el_tel: float,
+                 delta_az_derivative_phi: float,
+                 delta_el_derivative_phi: float,
+                 math=np):
 
         sin = math.sin
         cos = math.cos
@@ -117,11 +134,15 @@ class e_phi(XYZVector):
         az_rad = radians(az_tel)
         el_rad = radians(el_tel)
 
-        #delta_az_derivative_phi = 0
-        #delta_el_derivative_phi = 0
+        # delta_az_derivative_phi = 0
+        # delta_el_derivative_phi = 0
 
-        x = -sin(az_rad) * cos(el_rad) * (1. - delta_az_derivative_phi) + sin(el_rad) * cos(az_rad) * delta_el_derivative_phi
-        y = -cos(az_rad) * cos(el_rad) * (1. - delta_az_derivative_phi) - sin(el_rad) * sin(az_rad) * delta_el_derivative_phi
+        x = -sin(az_rad) * cos(el_rad) * (1. - delta_az_derivative_phi)
+        x += sin(el_rad) * cos(az_rad) * delta_el_derivative_phi
+
+        y = -cos(az_rad) * cos(el_rad) * (1. - delta_az_derivative_phi)
+        y -= sin(el_rad) * sin(az_rad) * delta_el_derivative_phi
+
         z = -cos(el_rad) * delta_el_derivative_phi
 
         norm = math.sqrt(x * x + y * y + z * z)
@@ -132,9 +153,15 @@ class e_phi(XYZVector):
 
 
 class e_theta(XYZVector):
+    """Unit vector in direction of theta in XYZ-coordinates.
+    """
 
-    def __init__(self, az_tel, el_tel, delta_az_derivative_theta,
-                 delta_el_derivative_theta, math=np):
+    def __init__(self,
+                 az_tel: float,
+                 el_tel: float,
+                 delta_az_derivative_theta: float,
+                 delta_el_derivative_theta: float,
+                 math=np):
 
         sin = math.sin
         cos = math.cos
@@ -142,11 +169,15 @@ class e_theta(XYZVector):
         az_rad = radians(az_tel)
         el_rad = radians(el_tel)
 
-        #delta_az_derivative_theta = 0
-        #delta_el_derivative_theta = 0
+        # delta_az_derivative_theta = 0
+        # delta_el_derivative_theta = 0
 
-        x = -sin(el_rad) * cos(az_rad) * (1. - delta_el_derivative_theta) + cos(el_rad) * sin(az_rad) * delta_az_derivative_theta
-        y = sin(el_rad) * sin(az_rad) * (1. - delta_el_derivative_theta) + cos(el_rad) * cos(az_rad) * delta_az_derivative_theta
+        x = -sin(el_rad) * cos(az_rad) * (1. - delta_el_derivative_theta)
+        x += cos(el_rad) * sin(az_rad) * delta_az_derivative_theta
+
+        y = sin(el_rad) * sin(az_rad) * (1. - delta_el_derivative_theta)
+        y += cos(el_rad) * cos(az_rad) * delta_az_derivative_theta
+
         z = cos(el_rad) * (1. - delta_el_derivative_theta)
 
         norm = math.sqrt(x * x + y * y + z * z)
@@ -154,5 +185,3 @@ class e_theta(XYZVector):
         self.x = x / norm
         self.y = y / norm
         self.z = z / norm
-
-
