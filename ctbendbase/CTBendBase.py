@@ -15,8 +15,7 @@ class CTBendBase(ABC):
     def __init__(self, parameters):
         # type: (dict) -> None
 
-        """Constructor.
-
+        """
         Args:
             parameters: Dictionary with parameters of the bending model.
         """
@@ -200,7 +199,7 @@ class CTBendBase(ABC):
            elevation), find the altaz coordinates
            to which the telescope would be pointing without correction.
 
-           Technically, values for az0 and el0 are searched such that 
+           Technically, values for az0 and el0 are searched such that
            the difference between the prediction BendingModel(az0, el0)
            and the input altaz is minimized.
 

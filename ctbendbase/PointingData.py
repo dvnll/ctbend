@@ -11,6 +11,7 @@ class UVCoordinate(object):
         v (float): v
     """
     def __init__(self, u, v):
+        # type (float, float) -> None
         self.u = u
         self.v = v
 
@@ -24,6 +25,7 @@ class CCDCoordinate(object):
     """
 
     def __init__(self, x, y):
+        # type (float, float) -> None
         self.x = x
         self.y = y
 
@@ -42,6 +44,8 @@ class CCDCoordinate(object):
         return CCDCoordinate(xnew, ynew)
 
     def rotate(self, alpha_deg):
+        # type (float) -> CCDCoordinate
+
         """
         Rotate the CCD coordinate by the angle alpha_deg.
         Args:
@@ -57,6 +61,8 @@ class CCDCoordinate(object):
         return CCDCoordinate(x_tilde, y_tilde)
 
     def project2uv(self, pixelscale):
+        # type (float) -> UVCoordinate
+
         """Project the CCD coordinate to the tangential plane of the unit ...
 
             Args:
@@ -80,6 +86,7 @@ class DriveCoordinate(object):
     """
 
     def __init__(self, azimuth, elevation):
+        # type (float, float) -> None
         self.azimuth = azimuth
         self.elevation = elevation
 
@@ -102,6 +109,8 @@ class PointingData(object):
     """
 
     def __init__(self, star, telescope, drive_position):
+        # type (CCDCoordiante, CCDCoordinate, DriveCoordinate) -> None
+
         self.star = star
         self.telescope = telescope
         self.drive_position = drive_position
@@ -125,12 +134,19 @@ class PointingDataset(object):
     """
 
     def __init__(self, pixelscale, pointing_model):
+        # type (float, CTBendBase) -> None
 
         self.pointing_data_list = np.array([])
         self.pixelscale = pixelscale
         self._pointing_model = pointing_model
 
     def pointing_model(self):
+        # type (None) -> CTBendBase
+
+        """Returns the pointing model applied while taking the
+           PointingDataset.
+        """
+
         parameters = self._pointing_model["parameters"]
         model_name = self._pointing_model["model_name"]
 
@@ -145,6 +161,8 @@ class PointingDataset(object):
         return info
 
     def append(self, pointing_data):
+        # type (PointingData) -> None
+
         """
         Append a PointingData point.
 
@@ -156,6 +174,7 @@ class PointingDataset(object):
 
     @property
     def elevation(self):
+        # type (None) -> List(float)
         el = []
         for drive_position in self.drive_position():
             elevation = drive_position.elevation
@@ -165,6 +184,8 @@ class PointingDataset(object):
 
     @property
     def azimuth(self):
+        # type (None) -> List(float)
+
         az = []
         for drive_position in self.drive_position():
             azimuth = drive_position.azimuth
@@ -173,6 +194,8 @@ class PointingDataset(object):
         return np.array(az)
 
     def old_bending_correction(self, bending_model):
+        # type (CTBendBase) -> float, float
+
         """Returns the bending correction that was applied while taking data.
 
            Args:
@@ -194,6 +217,8 @@ class PointingDataset(object):
             yield pointing_data.drive_position
 
     def uv(self, alpha_deg=0):
+        # type (float) -> UVCoordinate
+
         """Returns bending data points in the UV-plane.
 
         Args:
