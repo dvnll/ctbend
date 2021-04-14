@@ -21,9 +21,23 @@ if __name__ == "__main__":
                         dest="CTBEND",
                         required=True)
 
-    #parser.add_argument(n_cpu)
-    #parser.add_argument(train_fraction)
-    #parser.add_argument(progressbar)
+    parser.add_argument("--n_cpu",
+                        type=int,
+                        help="Number of CPU cores to use for sampling",
+                        dest="NCPU",
+                        default=2)
+
+    parser.add_argument("--training_fraction",
+                        type=float,
+                        help="Fraction of pointing data used for training",
+                        dest="FTRAIN",
+                        default=0.8)
+
+    parser.add_argument("--progress_bar",
+                        type=bool,
+                        help="Show a progress bar",
+                        dest="PROGRESS",
+                        default=True)
 
     parser_options = parser.parse_args()
 
@@ -36,14 +50,14 @@ if __name__ == "__main__":
     print(pointing_ds)
 
     training_dataset, test_dataset = pointing_ds.train_test_split(
-                                                    train_fraction=0.8)
+                                        train_fraction=parser_options.FTRAIN)
     print("----------")
     print(training_dataset)
 
     trainer = ModelTrainer(training_dataset=training_dataset,
                            bending_model_dict=bending_model_dict,
-                           n_cpu_cores=2)
-    trainer.train(progressbar=True)
+                           n_cpu_cores=parser_options.NCPU)
+    trainer.train(progressbar=parser_options.PROGRESS)
     trainer.posterior_parameter_info()
     """
     if os.path.isfile(p_options.OUTFILE):

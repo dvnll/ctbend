@@ -2,7 +2,7 @@ import ctbend.ctbendbase as ctbend
 import pymc3 as pm
 import theano.tensor as tensor
 import numpy as np
-from math import pi, sqrt, log
+from math import sqrt, log
 from scipy.special import erfinv
 import datetime
 import json
@@ -31,7 +31,7 @@ class ModelTrainer(object):
             self.model.parameters_are_distributions = True
 
         except AttributeError as e:
-            raise RuntimeError()
+            raise RuntimeError(e)
         except Exception as e:
             info = "Unknown exception while loading CTBend model: "
             info += str(e)
@@ -42,11 +42,14 @@ class ModelTrainer(object):
         self.logger = logging.getLogger(__name__)
         self.logger.info("Training size: " + str(len(training_dataset)))
 
-    def train(self, n_samples=4000, burn=1000,
-              tuning_steps=1000, progressbar=False):
+    def train(self,
+              n_samples: int = 4000,
+              burn: int = 1000,
+              tuning_steps: int = 1000,
+              progressbar: bool = False):
 
         parameters = self.model.model_parameter_names
-        
+
         azimuth = []
         elevation = []
         for drive_position in self.training_dataset.drive_position():
@@ -66,24 +69,27 @@ class ModelTrainer(object):
                     if key == "distribution":
                         continue
                     parameter_value = Quantity(
-                                        bending_prior_dict[parameter_name][key])
- 
-                    prior_parameter_values[key] = parameter_value.to(units.deg).value
+                                    bending_prior_dict[parameter_name][key])
+
+                    pp_value = parameter_value.to(units.deg).value
+                    prior_parameter_values[key] = pp_value
 
                 prior_dict = self.model.parameters["priors"]
-                prior_dict[parameter_name] = distribution(**prior_parameter_values)
+                prior_dict[parameter_name] = distribution(
+                                                **prior_parameter_values)
 
             nuisance_priors = self.bending_model_dict["nuisance_priors"]
 
             def get_sigma_prior():
                 pixel_sigma_median = nuisance_priors["sigma"]["median"]
                 pixel_sigma_90quantile = nuisance_priors["sigma"]["q90"]
-                    
+
                 def pixel_sigma_mu(pixel_sigma_median):
                     return log(pixel_sigma_median)
 
                 def pixel_sigma_sd(pixel_sigma_90quantile, pixel_sigma_median):
-                    pixel_sigma_sd = log(pixel_sigma_90quantile) - pixel_sigma_mu(pixel_sigma_median)
+                    pixel_sigma_sd = log(pixel_sigma_90quantile)
+                    pixel_sigma_sd -= pixel_sigma_mu(pixel_sigma_median)
                     pixel_sigma_sd /= sqrt(2.) * erfinv(0.8)
                     return pixel_sigma_sd
 
@@ -110,14 +116,17 @@ class ModelTrainer(object):
                     alpha = Quantity(nuisance_priors["alpha"]["value"])
                     return alpha.to(units.deg).value
 
-                distribution = getattr(pm, nuisance_priors["alpha"]["distribution"])
+                distribution = getattr(
+                                    pm,
+                                    nuisance_priors["alpha"]["distribution"])
                 prior_parameter_values = {"name": "alpha"}
                 for key in nuisance_priors["alpha"].keys():
                     if key == "distribution":
                         continue
                     parameter_value = Quantity(nuisance_priors["alpha"][key])
- 
-                    prior_parameter_values[key] = parameter_value.to(units.deg).value
+
+                    pp_value = parameter_value.to(units.deg).value
+                    prior_parameter_values[key] = pp_value
 
                 alpha = distribution(**prior_parameter_values)
 
@@ -133,7 +142,7 @@ class ModelTrainer(object):
 
                 mis_el = model.delta_elevation(az_star, el_star)
                 mis_az = model.delta_azimuth(az_star, el_star)
-                
+
                 el_star_tensor = tensor.as_tensor_variable(el_star)
                 az_star_tensor = tensor.as_tensor_variable(az_star)
 
@@ -167,7 +176,7 @@ class ModelTrainer(object):
 
                 daz0_tensor = tensor.as_tensor_variable(daz0)
                 del0_tensor = tensor.as_tensor_variable(del0)
-                
+
                 mis_el = model.delta_elevation(az_star, el_star)
                 mis_az = model.delta_azimuth(az_star, el_star)
 
@@ -197,7 +206,6 @@ class ModelTrainer(object):
 
                 return image_uv * e_theta
 
-
             sigma = get_sigma_prior()
             nu = get_nu_prior()
             alpha_deg = get_alpha_prior()
@@ -208,16 +216,9 @@ class ModelTrainer(object):
                 u.append(uv.u)
                 v.append(uv.v)
 
-            print("GET THIS LINE READY ON FRIDAY")
             b = self.training_dataset.pointing_model()
 
             daz0, del0 = self.training_dataset.old_bending_correction(b)
-            #daz0 = np.zeros(len(azimuth))
-            #del0 = np.zeros(len(elevation))
-            print(azimuth)
-            print(del0)
-            print(daz0)
-            print(elevation)
             model_u = _model_u(self.model, azimuth, elevation, daz0, del0)
             model_v = _model_v(self.model, azimuth, elevation, daz0, del0)
 
@@ -240,8 +241,14 @@ class ModelTrainer(object):
                                    tune=tuning_steps)
 
             try:
-                print("Alpha degrees in trainer: " + str(np.mean(self.trace["alpha"])))
-            except:
+                alpha_mean = np.mean(self.trace["alpha"])
+                info = "Alpha degrees in trainer: " + str(alpha_mean)
+                self.logger.debug(info)
+
+            except KeyError:
+                """Alpha was not sampled -> ignore.
+                """
+
                 pass
 
             self.waic = pm.stats.waic(self.trace)
@@ -249,12 +256,12 @@ class ModelTrainer(object):
     def posterior_parameter_info(self):
 
         parameter_list = self.model.model_parameter_names
-        
+
         def parameter_info(parameter_name):
             try:
                 parameter_trace = self.trace[parameter_name]
-            except:
-                print(parameter_name + " not sampled")
+            except KeyError:
+                self.logger.debug(parameter_name + " not sampled")
                 return
 
             median = np.percentile(parameter_trace, q=50)
@@ -266,7 +273,7 @@ class ModelTrainer(object):
             info = parameter + ": Median " + str(round(median, 2))
             info += ", 68% CL [" + str(round(minus, 2))
             info += ", " + str(round(plus, 2)) + "]"
-            print(info)
+            self.logger.info(info)
 
         for parameter in parameter_list:
 
