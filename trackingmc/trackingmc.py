@@ -26,13 +26,9 @@ class MCSetup(object):
 
         self.config_dict = config_dict
 
-    @property
-    def star(self):
-        return SkyCoord(ra=self.config_dict["star_ra"],
-                        dec=self.config_dict["star_dec"])
-
-    @property
     def random_star(self):
+        """Return a random star coordinate.
+        """
 
         ra_h = np.random.uniform(0, 24)
         ra_m = np.random.uniform(0, 60)
@@ -51,9 +47,11 @@ class MCSetup(object):
         star_dec += str(int(dec_s)) + "s"
 
         return SkyCoord(ra=star_ra, dec=star_dec)
-	
+
     @property
     def location(self):
+        """Observation location.
+        """
         lat = u.Quantity(self.config_dict["location_lat"])
         lon = u.Quantity(self.config_dict["location_lon"])
         height = u.Quantity(self.config_dict["location_height"])
@@ -64,29 +62,43 @@ class MCSetup(object):
 
     @property
     def telescope_focal_length(self):
+        """Focal length of the telescope as quantity with unit.
+        """
         return u.Quantity(self.config_dict["telescope_focal_length"])
 
     @property
     def ccd_focal_length(self):
+        """CCD focal length as quantity with unit.
+        """
         return u.Quantity(self.config_dict["ccd_focal_length"])
 
     @property
     def ccd_pixel_size(self):
+        """Size of a CCD pixel (assumed to be a square) as quantity with unit.
+        """
         return u.Quantity(self.config_dict["ccd_pixel_size"])
 
     @property
     def delta_t(self):
+        """Time between two CCD images as quantity with unit.
+        """
         return u.Quantity(self.config_dict["delta_t"])
 
     @property
     def n_tracking(self):
+        """Number of tracking points.
+        """
         return int(self.config_dict["n_tracking"])
 
     @property
     def start_timestamp(self):
+        """Timestamp at start of tracking.
+        """
         return self.config_dict["start_timestamp"]
 
     def tracking_timestamps(self):
+        """Yields a tracking timestamp.
+        """
 
         delta_t = u.Quantity(self.config_dict["delta_t"])
         start_timestamp = self.config_dict["start_timestamp"]
@@ -97,21 +109,34 @@ class MCSetup(object):
 
     @property
     def pixel_scale(self):
+        """CCD pixel scale in radians.
+        """
 
-        return self.ccd_pixel_size.to(u.m).value / self.ccd_focal_length.to(u.m).value * u.rad
+        scale = self.ccd_pixel_size.to(u.m).value
+        scale /= self.ccd_focal_length.to(u.m).value
+        scale *= u.rad
+
+        return scale
 
     @property
     def bending(self):
+        """Returns the bending model applied during data-taking.
+        """
+
         parameters = self.config_dict["bending"]["parameters"]
         parameters0 = parameters
-        return getattr(CTBend, self.config_dict["bending"]["model"])(parameters0)
+        return getattr(CTBend,
+                       self.config_dict["bending"]["model"])(parameters0)
 
     def measured_x1x2(self, true_x1, true_x2):
+        """Position of star in CCD coordinates.
+        """
 
         sigma = self.config_dict["sigma"]["size"]
         sigma2 = np.power(sigma, 2)
-        (dx1, dx2) = np.random.multivariate_normal([0, 0], cov=[[sigma2, 0],[0, sigma2]])
-        
+        (dx1, dx2) = np.random.multivariate_normal([0, 0], cov=[[sigma2, 0],
+                                                                [0, sigma2]])
+
         offset_x1 = float(self.config_dict["sigma"]["offset_x1"])
         offset_x2 = float(self.config_dict["sigma"]["offset_x2"])
 
@@ -163,7 +188,7 @@ if __name__ == "__main__":
 
                 Args:
                 minimal_altitude_deg: Minimal altitude of the star in degrees.
-            """ 
+            """
             def get_random_star():
                 time = datetime.fromtimestamp(timestamp)
                 observing_time = Time(time)
@@ -171,16 +196,14 @@ if __name__ == "__main__":
                 aa = AltAz(location=setup.location,
                            obstime=observing_time)
 
-                return setup.random_star.transform_to(aa)
-        
+                return setup.random_star().transform_to(aa)
+
             star_altaz = get_random_star()
             while star_altaz.alt.to(u.deg).value < minimal_altitude_deg:
                 star_altaz = get_random_star()
             return star_altaz
 
         star_altaz = random_star_altaz()
-
-        #star_altaz = setup.star.transform_to(aa)
 
         bending = setup.bending
         az_star_deg = star_altaz.az.to(u.deg).value
@@ -197,7 +220,7 @@ if __name__ == "__main__":
         telescope = XYZVector(az=telescope_az.to(u.deg).value,
                               el=telescope_el.to(u.deg).value)
 
-        def get_e_phi():     
+        def get_e_phi():
             delta_az_derivative_phi = bending.delta_azimuth_derivative_phi(
                                         az=telescope_az.to(u.deg).value,
                                         el=telescope_el.to(u.deg).value)
@@ -212,13 +235,13 @@ if __name__ == "__main__":
                            delta_el_derivative_phi=delta_el_derivative_phi)
             return _e_phi
 
-        def get_e_theta(): 
+        def get_e_theta():
             delta_az_derivative_theta = bending.delta_azimuth_derivative_theta(
                                             az=telescope_az.to(u.deg).value,
                                             el=telescope_el.to(u.deg).value)
 
             delta_el_derivative_theta = \
-                    bending.delta_elevation_derivative_theta(
+                bending.delta_elevation_derivative_theta(
                                             az=telescope_az.to(u.deg).value,
                                             el=telescope_el.to(u.deg).value)
 
@@ -231,7 +254,7 @@ if __name__ == "__main__":
 
         def telescope_ccd_position():
             """The pointing direction of the telescope in CCD coordinates
-               is the center of the LED pattern. By definition, this is the 
+               is the center of the LED pattern. By definition, this is the
                zero-vector in CCD coordinates in this MC.
             """
             x1_tel = 0
@@ -243,7 +266,6 @@ if __name__ == "__main__":
             star_vector = XYZVector(star_altaz.az.to(u.deg).value,
                                     star_altaz.alt.to(u.deg).value)
 
-
             focal_length_mm = setup.ccd_focal_length.to(u.mm).value
             image_star_length = focal_length_mm / (telescope * star_vector)
 
@@ -251,7 +273,6 @@ if __name__ == "__main__":
 
             image_star = image * image_star_length
 
-            
             fp_u = image_star * get_e_phi()
             fp_v = image_star * get_e_theta()
 
@@ -270,6 +291,7 @@ if __name__ == "__main__":
                                      drive_position=drive_position)
 
         pointing_dataset.append(pointing_data)
-        #print(pointing_data)
-    
+        logger.debug("Pointing data:")
+        logger.debug(pointing_data)
+
     pointing_dataset.save(options.OUTFILE)
