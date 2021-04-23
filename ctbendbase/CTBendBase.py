@@ -231,13 +231,12 @@ class CTBendBase(ABC):
             return loss
 
         for az, el in zip(azimuth, elevation):
-            range_error = False
             x0 = (az, el)
             res = minimize(_telescope_pointing_inverter_loss_function,
                            x0, args=(az, el), method="nelder-mead",
                            options={"xtol": tolerance, "disp": verbose})
 
-            if range_error or res.success is False:
+            if not res.success:
                 res = minimize(self._telescope_pointing_inverter_loss_function,
                                x0, args=(az, el), method="L-BFGS-B",
                                options={"disp": verbose})
