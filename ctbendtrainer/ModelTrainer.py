@@ -291,9 +291,6 @@ class ModelTrainer(object):
         model_dict = {"created": datetime.datetime.now(),
                       "model": model_json,
                       "name": self.model.name,
-                      "gelman_rubin": pm.diagnostics.gelman_rubin(self.trace),
-                      "effective_n": pm.diagnostics.effective_n(self.trace),
-                      "trace": self.trace,
-                      "tpoints": self.tpoints}
+                      "trace": self.trace}
 
         return model_dict

@@ -15,8 +15,14 @@ Tracking data with a bending configuration which is defined in test_input_model_
 2) Analyze the Monte-Carlo pointing dataset:
 
 ```
-python3 analyze_datafile.py --pointing_dataset_file test.pickle --bending_model test_fit_model_basic4.json --n_cpu 5
+python3 analyze_datafile.py --pointing_dataset_file test.pickle --bending_model test_fit_model_basic4.json --n_cpu 5 --output_file model.pickle
 ```
 
 The Monte-Carlo tracking data (test.pickle) is analyzed with the model defined in test_fit_model_basic4.json. 
 Make sure that the posterior estimation is compatible with the input bending configuration.
+
+3) Make predictions for the mis-pointing using the new model:
+
+```
+python3 prediction_test.py --model_file model.pickle
+```

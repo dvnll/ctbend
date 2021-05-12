@@ -1,4 +1,4 @@
-#import os
+import os
 from ctbend.ctbendtrainer.ModelTrainer import ModelTrainer
 import argparse
 import pickle
@@ -39,6 +39,12 @@ if __name__ == "__main__":
                         dest="PROGRESS",
                         default=True)
 
+    parser.add_argument("--output_file",
+                        type=str,
+                        help="Output file",
+                        dest="OUTFILE",
+                        default="NONE")
+
     parser_options = parser.parse_args()
 
     with open(parser_options.INFILE, "rb") as fin:
@@ -59,8 +65,11 @@ if __name__ == "__main__":
                            n_cpu_cores=parser_options.NCPU)
     trainer.train(progressbar=parser_options.PROGRESS)
     trainer.posterior_parameter_info()
-    """
-    if os.path.isfile(p_options.OUTFILE):
-        error = "Model output file " + p_options.OUTFILE + " already exists"
+    
+    if not parser_options.OUTFILE == "NONE" and os.path.isfile(parser_options.OUTFILE):
+        error = "Model output file " + parser_options.OUTFILE + " already exists"
         raise RuntimeError(error)
-    """
+
+    if not parser_options.OUTFILE == "NONE":
+        with open(parser_options.OUTFILE, "wb") as fout:
+            pickle.dump(trainer.model_dictionary, fout)

@@ -224,4 +224,4 @@ def bending_factory(model_json):
 
     requested_model = model_json["name"]
     return getattr(sys.modules[__name__],
-                   requested_model)(parameters=model_json)
+                   requested_model)(parameters=model_json["model"]["mean"])
