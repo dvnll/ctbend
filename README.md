@@ -35,7 +35,7 @@ Now, point the telescope to (azimuth, elevation)=(corrected_azimuth, corrected_e
 For citations, please refer to the (upcoming) proceedings to the ICRC2021:
 
 ```
-@article{pointing,
+@article{ctbend,
     author = "G. Spengler et al.",
     title = "{CTbend: A Bayesian open-source framework to model pointing corrections for Cherenkov telescopes}
     journal = "PoS",
