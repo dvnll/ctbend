@@ -32,7 +32,7 @@ corrected_elevation = el + delta_elevation
 
 Now, point the telescope to (azimuth, elevation)=(corrected_azimuth, corrected_elevation), in degrees.
 
-For citations, refer to the (upcoming) proceedings:
+For citations, please refer to the (upcoming) proceedings to the ICRC2021:
 
 ```
 @article{pointing,
