@@ -16,11 +16,11 @@ A pointing model is loaded with the factory method bending_factory:
 ```
 import ctbendbase
 
-model_json = ...
+model_json = from file, database etc.
 pointing_model = ctbendbase.bending_factory(model_json)
 ```
 
-Once loaded, the pointing corrections for the telescope pointing towards (az, el) in degrees are obtained via
+Once loaded, the pointing corrections for the telescope pointing towards (az, el) in degrees are obtained via:
 
 ```
 delta_azimuth = pointing_model.delta_azimuth(az, el)
@@ -29,3 +29,5 @@ delta_elevation = pointing_model.delta_elevation(az, el)
 corrected_azimuth = az + delta_azimuth
 corrected_elevation = el + delta_elevation
 ```
+
+Now, point the telescope to (azimuth, elevation)=(corrected_azimuth, corrected_elevation), in degrees.
