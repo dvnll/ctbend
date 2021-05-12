@@ -234,11 +234,12 @@ class ModelTrainer(object):
                         nu=nu,
                         observed=v)
 
-            self.trace = pm.sample(n_samples,
-                                   burn=burn,
-                                   cores=self.n_cpu_cores,
-                                   progressbar=progressbar,
-                                   tune=tuning_steps)
+            trace = pm.sample(n_samples,
+                              cores=self.n_cpu_cores,
+                              progressbar=progressbar,
+                              tune=tuning_steps)
+
+            self.trace = trace[burn:]
 
             try:
                 alpha_mean = np.mean(self.trace["alpha"])
@@ -250,8 +251,6 @@ class ModelTrainer(object):
                 """
 
                 pass
-
-            self.waic = pm.stats.waic(self.trace)
 
     def posterior_parameter_info(self):
 
@@ -295,7 +294,6 @@ class ModelTrainer(object):
                       "gelman_rubin": pm.diagnostics.gelman_rubin(self.trace),
                       "effective_n": pm.diagnostics.effective_n(self.trace),
                       "trace": self.trace,
-                      "tpoints": self.tpoints,
-                      "waic": self.waic}
+                      "tpoints": self.tpoints}
 
         return model_dict
