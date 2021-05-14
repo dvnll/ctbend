@@ -127,7 +127,7 @@ class PointingDataset(object):
     """Collection of PointingData.
 
     Attributes:
-        pointing_data (list[PointingData]): List of PointingData.
+        pointing_data_list (list[PointingData]): List of PointingData.
         pixelscale (float): "Pixel scale" of the CCD camera in arcsec.
         bending_model (dict): Description of the pointing model
                               used during data-taking.
