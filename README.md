@@ -32,14 +32,14 @@ corrected_elevation = el + delta_elevation
 
 Now, point the telescope to (azimuth, elevation)=(corrected_azimuth, corrected_elevation), in degrees.
 
-For citations, please refer to the (upcoming) proceedings to the ICRC2021:
+For citations, please refer to the [proceedings](https://arxiv.org/pdf/2108.00720.pdf) to the ICRC 2021:
 
 ```
 @article{ctbend,
     author = "G. Spengler et al.",
     title = "{CTbend: A Bayesian open-source framework to model pointing corrections for Cherenkov telescopes}
     journal = "PoS",
-    volume = "ICRC2021",
+    volume = "699 (ICRC 2021)",
     year = "2021"
 }
 ```
